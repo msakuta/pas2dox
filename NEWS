@@ -1,0 +1,44 @@
+Version 0.41
+  * Experimental -b command line option for converting function body added
+  * New -j JavaDoc processing command line parameter
+  * Support for new flex versions on windows
+  * Constructor/Destructor functions handled correctly
+  * Quoted text now ignored in function body
+  * Swapped class and type around on typedef
+  * Parameter default of [] now handled
+  * Array of syntax now handled in function parameters
+  * End ignored while look for next class definition
+  * Out function parameters are now treated as vars
+  * Constants handling redesigned
+  * ///< style comments are working for functions and enums
+  * Fixed bug, where end; wasn't being handled correctly in function body
+
+Version 0.40
+
+  * removed dependency on QT libraries
+  * added -o output option
+  * fixed array bug
+  * corrected debug output to be more suitable for doxygen
+  * compiler defines handled
+  * type x = num..num; now interpreted as int x;
+  * implementation type section now handled with an #ifdef
+  * x = class; fix now handled as class x;
+  * varous fixes around callback section.
+  * assembler functions handled.
+  * handling of function type definitions
+  * handling of interface types
+  * class members defaults to public
+  * handling of resourcestring constants
+  * translating of string constants enclosed by ' ' to " "
+  * handling of typed constants
+  * Allow var to be indented
+
+Version 0.31
+
+  * Fixed bug in uses section.
+  * Const and type sections are now ignored after an implementation section.
+  * Function body statements are now enclosed in an #ifndef / #endif.
+  * Fix made for end keyword.
+  * Fix to function parameter list / return type.
+  * Changed command line parameter options to -h for help and -d for debug.
+  * Added -k command line option to exclude #ifndef DOXYGEN_SKIP

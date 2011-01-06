@@ -1,0 +1,141 @@
+-------------------------------------------------------------------------
+Version 0.50alpha       6th February 2006
+-------------------------------------------------------------------------
+Added include file for tolower to fix build on linux
+handle default values and multi line comments on enums.
+Updated for typedef
+Don't process end of block comment } in a single comment line
+read / write for properties are now handled correctly.  see bug 6
+Additional Doxygen comments on array declaration.
+Assigning a value to a var when declaring it
+Updated copyright year and version
+Swapped typedef
+added -s option to suppress generation of \sa comments on property.
+fixed issue with function comments in function definition.
+Additional end check.
+-------------------------------------------------------------------------
+Version 0.42alpha	3rd July 2005
+-------------------------------------------------------------------------
+Moving towards 0.42 release
+-------------------------------------------------------------------------
+Version 0.41	15th November 2003
+-------------------------------------------------------------------------
+Constructor/Destructor functions handled correctly
+Experimental -b command line option for converting function body added
+Quoted text now ignored in function body
+Swapped class and type around on typedef
+Parameter default of [] now handled
+Array of syntax now handled in function parameters
+Support for new flex versions on windows
+End ignored while look for next class definition
+New -j JavaDoc processing command line parameter
+Out function parameters are now treated as vars
+Constants handling redesigned
+///< style comments are working for functions and enums
+Fixed bug, where end; wasn't being handled correctly in function body
+-------------------------------------------------------------------------
+Version 0.40	2nd August 2003
+-------------------------------------------------------------------------
+fixed array bug
+added -o output option
+compiler defines handled
+type x = num..num; now interpreted as int x;
+implementation type section now handled with an #ifdef
+x = class; fix now handled as class x;
+varous fixes around callback section.
+assembler functions handled.
+handling of function type definitions
+handling of interface types
+class members defaults to public
+handling of resourcestring constants
+translating of string constants enclosed by ' ' to " "
+handling of typed constants
+corrected debug output to be more suitable for doxygen
+removed dependency on QT libraries
+Allow var to be indented
+
+-------------------------------------------------------------------------
+Version 0.31	1st March 2003
+
+Fixed bug in uses section.
+const and type sections are ignored after implementation section.
+function body statements are now enclosed in a #ifndef/#endif statement.
+End fix.
+Function parameter list / return type fix.
+Changed command line options to -h for help and -d debug.
+Added -k option to exclude #ifndef DOXYGEN_SKIP
+method pointers split over multiple lines are commented out correctly.
+-------------------------------------------------------------------------
+Version 0.30	24th November 2002
+
+type and constants fixes
+code tidy for debug mode, along with small fixes
+many major fixes.
+block comments in Var section fix
+const section and property fix.
+stopped unhandled exception, although additional syntax handling is required.
+ID = type ID handled
+Command Line Parameter /d added for Debug Mode.
+{ comments no longer need matching } on line
+array[Byte] of ... handled as [255]
+updated date/version number.
+Default value bug fix.
+various bug fixes.
+Single line comments handled in const/var section.
+default values handled for ID and NUM.  function prototypes now ended with ;
+default values handled in function parameters.
+pointer to class handled.  arrays in structures handled.
+updated array handling in type section.
+changed read/write comments on properties from // to /** */ style
+property handled better.
+-------------------------------------------------------------------------
+Version 0.24	1st November 2002
+
+Bug Fixes
+additional keyword in comment fix
+bug fix for keywords in comments
+630391 - ; added to finish enum declaration
+-------------------------------------------------------------------------
+Version 0.23	12th October 2002
+
+Bug Fixes
+-------------------------------------------------------------------------
+Version 0.22	2nd September 2002
+
+win32 fixes
+:= bug fix
+additional array work
+Additional DEBUG messages.
+More work on Array and Set processing.
+Fixed Program/Unit Bug.
+handling set/array of
+set/array of fixes
+property read/write now generates \sa tag
+-------------------------------------------------------------------------
+Version 0.21	13th August 2002
+
+begin/end blocks handled
+bug fixes
+bug fixes
+-------------------------------------------------------------------------
+Version 0.2	9th August 2002
+
+var comment fix.
+interface handled.
+end of class definition handled correctly.
+enumerations handled in class definition.
+Fixed memory leaks.
+Code tidy.
+Enumerations now handled.
+InClass resumes after block comments in class body.
+Case statement handled in function body.
+Type whitespace fix.
+Type declaration within type now ignored.
+-------------------------------------------------------------------------
+Version 0.1	5th August 2002
+
+bug fixes
+Bit of a code tidy up.
+small fixes
+Initial Version
+=============================================================================

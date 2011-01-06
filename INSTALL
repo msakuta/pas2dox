@@ -1,0 +1,54 @@
+Pas2dox Version 0.42alpha
+--------------------
+
+Compiling from source on Linux
+==============================
+1. Unpack the archive
+# tar xvzf pas2dox-0.42alpha.tar.gz
+
+2. Build the source for a case insensitive scanner, with the following command:
+# make
+
+This will perform the follow commands
+# flex -i -opas2dox.cpp pas2dox.l
+# g++ pas2dox.cpp -o pas2dox
+
+3. If you need to remove the pas2dox.cpp and pas2dox files, type
+# make clean
+
+4. When performing an upgrade of source code, I suggest you do the following
+# make clean && make
+
+Installing the binaries on Linux
+================================
+1. Copy the pas2dox binary to /usr/local/bin/pas2dox
+
+# make install
+
+2. If you need to install to another place, use
+
+# make install INSTALL_DIR="/your/location/here"
+
+Compiling from source on Windows
+================================
+Currently the source is built on Windows, using Microsoft Visual Studio 6.0
+You will also need a recent version of Flex. It can be found at
+  http://gnuwin32.sourceforge.net/packages/flex.htm
+
+a. To build pas2dox.exe from command line make sure environment variables are
+   set (run vcvars32.bat). Then execute:
+
+> nmake /F pas2dox.mak
+
+b. To build pas2dox.exe from Visual Studio IDE open the file pas2dox.dsp,
+   set active configuration to "pas2dox - Win32 Release" then build it up.
+
+If you don't have Flex and don't want to modify the sources you may use
+pregenerated pas2dox.cpp for compilation.
+
+Installing the binary on Windows
+================================
+Simply copy the pas2dox.exe from the Release subdirectory to either
+somewhere in your path, or have your Doxyfile point to it.
+
+Darren Bowles (dbowles@users.sourceforge.net) (3rd August 2005)
