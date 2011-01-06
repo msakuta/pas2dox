@@ -22,6 +22,7 @@
 #include <ctype.h>
 #ifdef _WIN32
 # include <io.h>
+# include <windows.h>
 #endif
 
 using namespace std;
@@ -777,6 +778,26 @@ void ChangeStrings(void)
 //*****************************************************************************
 void PushText(const char* txt);
 %}
+
+%{
+/// Translate incoming text from Shift-JIS (CP932) to UTF-8.
+#define YY_INPUT(buf,result,max_size) \
+	 { \
+	int c = getc(yyin); \
+	if(0x81 <= c && c <= 0x9f || 0xE0 <= c && c <= 0xff){\
+		char cs[3];\
+		cs[0] = c;\
+		cs[1] = getc(yyin);\
+		cs[2] = '\0';\
+		wchar_t wcs[3] = L"";\
+		MultiByteToWideChar(932, MB_PRECOMPOSED, cs, 2, wcs, sizeof wcs);\
+		result = WideCharToMultiByte(CP_UTF8, 0, wcs, 1, buf, max_size, NULL, NULL);\
+	}\
+	else\
+	 result = (c == EOF) ? YY_NULL : (buf[0] = c, 1); \
+	 }
+%}
+
 
 ID      [a-z_A-Z][a-z_A-Z0-9]*
 NUM     [0-9]*
@@ -2947,6 +2968,7 @@ int main (int argc, char** argv)
     {
       if (i == argc - 1)
       {
+#if 0
         static const char piper[] = "c:\\python26\\python d:\\testproj\\python\\sjis2utf8.py <";
         char *fname = new char[strlen(argv[i]) + sizeof piper];
         strcpy(fname, piper);
@@ -2954,6 +2976,9 @@ int main (int argc, char** argv)
         // input filename
         yyin = popen(fname, "r");
         delete[] fname;
+#else
+        yyin = fopen(argv[i], "r");
+#endif
 
         if (yyin == NULL)
         {
