@@ -1865,7 +1865,7 @@ OPER    ("."|"not"|"@"|"^"|"/"|"div"|"mod"|"shl"|"shr"|"="|"<>"|"and"|"xor"|"or"
   BEGIN(function);
 }
 
-<myparent>"="{S}("procedure"|"function") {
+<myparent>"="{S}*("procedure"|"function") {
 
   OutputLog("// function typedef processing");
   g_bCallback = true;

@@ -5,6 +5,13 @@ unit classes;
 
 type
 
+  TCustomItemDrawText =
+    function(): Boolean of object;
+
+TNoInherit = class
+public
+end;
+
 {*
  * TMemoryStream class derived from TCustomMemoryStream
  }
