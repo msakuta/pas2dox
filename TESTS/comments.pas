@@ -19,6 +19,15 @@ type
 {* block comment
  over multiple lines *}
 
+{ bcool }
+
+(* block comment on one line *)
+
+(* block comment
+    function CreateControl(AOwner : TScrollBox; nCount : Integer = 5) : Boolean;
+ over multiple lines *)
+
+
 // end of block comment in single line comment
 /// @}
 

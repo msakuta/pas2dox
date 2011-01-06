@@ -791,6 +791,7 @@ OPER    ("."|"not"|"@"|"^"|"/"|"div"|"mod"|"shl"|"shr"|"="|"<>"|"and"|"xor"|"or"
 %x param_type
 %x func_ret
 %x comments
+%x ccomments
 %x mytype
 %x myparent
 %x myparent2
@@ -2253,7 +2254,7 @@ OPER    ("."|"not"|"@"|"^"|"/"|"div"|"mod"|"shl"|"shr"|"="|"<>"|"and"|"xor"|"or"
   BEGIN(comments);
 }
 
-<*>"{"|"(*" {
+<*>"{" {
   OutputLog("// Processing Block Comments");
 
   if (g_bVars)
@@ -2286,7 +2287,7 @@ OPER    ("."|"not"|"@"|"^"|"/"|"div"|"mod"|"shl"|"shr"|"="|"<>"|"and"|"xor"|"or"
   BEGIN(comments);
 }
 
-<*>"}"|"*)" {
+<*>"}" {
 
   if (g_bVars)
   {
@@ -2318,7 +2319,26 @@ OPER    ("."|"not"|"@"|"^"|"/"|"div"|"mod"|"shl"|"shr"|"="|"<>"|"and"|"xor"|"or"
   g_nCommentCaller = 0;
 }
 
-<*>function|procedure|constructor|destructor          {
+<*>"(*" {
+  // The pattern "*)" doesn't match though I don't know why.
+  OutputLog("CurlyCommentInclusive");
+  fprintf(OUTPUT, "/*");
+//  fprintf(OUTPUT, "%.*s", yyleng - 4, &yytext[2]);
+//  fprintf(OUTPUT, "*/");
+
+  if (YY_START != ccomments)
+    g_nCommentCaller = YY_START;
+
+  BEGIN(ccomments);
+}
+
+<ccomments>"*)" {
+  fprintf(OUTPUT, "*/");
+  BEGIN(g_nCommentCaller);
+  g_nCommentCaller = 0;
+}
+
+<Body,InClass,Struct>function|procedure|constructor|destructor          {
 
   if (g_nBegins > 0)
   {
@@ -2504,6 +2524,7 @@ ProcessParameterType(g_processtype.c_str());
   list<param_info>::iterator i;
 
   OutputLog("// output function details");
+  OutputLog(g_bClassBody ? "// g_bClassBody = true" : "// g_bClassBody = false");
 
 // ------------------------
   // todo : remove this and fix underlying cause
@@ -2926,8 +2947,13 @@ int main (int argc, char** argv)
     {
       if (i == argc - 1)
       {
+        static const char piper[] = "c:\\python26\\python d:\\testproj\\python\\sjis2utf8.py <";
+        char *fname = new char[strlen(argv[i]) + sizeof piper];
+        strcpy(fname, piper);
+        strcat(fname, argv[i]);
         // input filename
-        yyin = fopen(argv[i], "r");
+        yyin = popen(fname, "r");
+        delete[] fname;
 
         if (yyin == NULL)
         {
