@@ -1930,6 +1930,11 @@ OPER    ("."|"not"|"@"|"^"|"/"|"div"|"mod"|"shl"|"shr"|"="|"<>"|"and"|"xor"|"or"
   BEGIN(Enum);
 }
 
+<myparent>"="{S}*"set"{S}+"of"{S}*"(" {
+	ProcessEnums();
+	BEGIN(Enum);
+}
+
 <Enum>({NUM}"."{NUM}|{NUM}) {
   OutputLog2("// enum num: ", yytext);
 

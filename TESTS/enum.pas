@@ -18,6 +18,15 @@ line.}
 MSG_DIRECTORY = 3 {*< Scan entered a directory }
 );
 
+{*
+ * Set of Enum
+ }
+TSetOfEnum = set of (
+AConst,
+BConst,
+CConst
+);
+
 interface
 
 implementation
