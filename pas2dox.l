@@ -805,6 +805,7 @@ NUM     [0-9]*
 S       [ \t\n\r]
 KEYWORD ("abstract"|"cdecl"|"register"|"dynamic"|"virtual"|"export"|"external"|"far"|"forward"|"override"|"overload"|"pascal"|"reintroduce"|"safecall"|"stdcall")
 OPER    ("."|"not"|"@"|"^"|"/"|"div"|"mod"|"shl"|"shr"|"="|"<>"|"and"|"xor"|"or"|":=")
+NON_ID  [^a-z_A-Z0-9]
 
 %x PROGRAM
 %x function
@@ -1087,7 +1088,7 @@ OPER    ("."|"not"|"@"|"^"|"/"|"div"|"mod"|"shl"|"shr"|"="|"<>"|"and"|"xor"|"or"
   }
 }
 
-<vars>begin|asm        {
+<vars>{NON_ID}+begin|asm{NON_ID}+        {
   OutputLogNum("// Got Begin (vars) - ", g_nBegins);
 
   if (g_bIgnore)
@@ -1110,7 +1111,7 @@ OPER    ("."|"not"|"@"|"^"|"/"|"div"|"mod"|"shl"|"shr"|"="|"<>"|"and"|"xor"|"or"
   BEGIN(Func_Body);
 }
 
-<vars>implementation {
+<vars>{NON_ID}+implementation{NON_ID}+ {
 
   if (g_bInterfaceOnly)
   {
@@ -1135,7 +1136,7 @@ OPER    ("."|"not"|"@"|"^"|"/"|"div"|"mod"|"shl"|"shr"|"="|"<>"|"and"|"xor"|"or"
   }
 }
 
-<vars>function|procedure|begin {
+<vars>{NON_ID}+(function|procedure|begin){NON_ID}+ {
   if (g_bIgnore)
   {
     OutputLog("// section ignore");
