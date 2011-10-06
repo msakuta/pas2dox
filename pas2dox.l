@@ -104,7 +104,9 @@ void Convert_Type(string& pText)  ///< Type to be converted
   type_conv* p;
 
   string str = pText;
-  std::transform (str.begin(),str.end(), str.begin(), tolower);
+//  std::transform (str.begin(),str.end(), str.begin(), tolower); #@@
+	for(int i = 0; i < str.size(); i++)
+		str[i] = tolower(str[i]); 
 
   int count = sizeof(type_conversion) / sizeof(type_conv);
 
@@ -405,8 +407,9 @@ void Convert_Op(string& pText,   ///< Operator to be converted
     return;
 
   string str = pText;
-  std::transform (str.begin(),str.end(), str.begin(), tolower);
-
+//  std::transform (str.begin(),str.end(), str.begin(), tolower); #@@
+	for(int i = 0; i < str.size(); i++)
+		str[i] = tolower(str[i]); 
   int count = sizeof(operator_conversion) / sizeof(op_conv);
 
   for (int i = 0; i < count; i++)
@@ -1228,7 +1231,9 @@ OPER    ("."|"not"|"@"|"^"|"/"|"div"|"mod"|"shl"|"shr"|"="|"<>"|"and"|"xor"|"or"
     string str = yytext;
     string lowstr = str;
 
-    std::transform (lowstr.begin(),lowstr.end(), lowstr.begin(), tolower);
+//    std::transform (lowstr.begin(),lowstr.end(), lowstr.begin(), tolower); // #@@
+	for(int i = 0; i < lowstr.size(); i++)
+		lowstr[i] = tolower(lowstr[i]); 
 
     int forpos = lowstr.find("for", 0);
     int dopos = lowstr.find("do", 0);
@@ -1377,7 +1382,9 @@ OPER    ("."|"not"|"@"|"^"|"/"|"div"|"mod"|"shl"|"shr"|"="|"<>"|"and"|"xor"|"or"
     str.erase(i,3);
 
     string str2 = str;
-    std::transform (str.begin(),str.end(), str2.begin(), tolower);
+//    std::transform (str.begin(),str.end(), str2.begin(), tolower); // #@@
+	for(int i = 0; i < str2.size(); i++)
+		str2[i] = tolower(str2[i]); 
 
     i = str2.find("self", 0);
     if (i != string::npos)
