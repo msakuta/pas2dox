@@ -940,7 +940,7 @@ OPER    ("."|"not"|"@"|"^"|"/"|"div"|"mod"|"shl"|"shr"|"="|"<>"|"and"|"xor"|"or"
   BEGIN(directive);
 }
 
-<PROGRAM>[ \t\n]{ID}; {
+<PROGRAM>[ \t\n]{ID}{S}*; {
   // Get the program name
   BEGIN(Body);
 }
