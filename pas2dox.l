@@ -801,7 +801,6 @@ void PushText(const char* txt);
 	 }
 %}
 
-
 ID      [a-z_A-Z][a-z_A-Z0-9]*
 NUM     [0-9]*
 S       [ \t\n\r]
@@ -1589,7 +1588,7 @@ OPER    ("."|"not"|"@"|"^"|"/"|"div"|"mod"|"shl"|"shr"|"="|"<>"|"and"|"xor"|"or"
 <ProcessEnum>{ID} {
   g_strTypedefName = yytext;
   BEGIN(ProcessEnum1);
-}
+} 
 
 <ProcessEnum1>":" {} // eat
 
@@ -1916,7 +1915,8 @@ OPER    ("."|"not"|"@"|"^"|"/"|"div"|"mod"|"shl"|"shr"|"="|"<>"|"and"|"xor"|"or"
   BEGIN(mytype);
 }
 
-<myparent>"="{S}"record" {
+<myparent>"="{S}*"record" {
+	// record識別子の前のスペース数を可変にした
   OutputLog("// processing a record structure");
 
   fprintf(OUTPUT, "struct %s\n{\n", pClass->sName.c_str());
@@ -1924,7 +1924,8 @@ OPER    ("."|"not"|"@"|"^"|"/"|"div"|"mod"|"shl"|"shr"|"="|"<>"|"and"|"xor"|"or"
   g_bStructure = true;
 }
 
-<myparent>"="{S}"packed record" {
+<myparent>"="{S}*"packed record" {
+	// packed record識別子の前のスペース数を可変にした
   OutputLog("// got a packed record");
 
   fprintf(OUTPUT, "struct %s\n{\n", pClass->sName.c_str());
@@ -2073,7 +2074,8 @@ OPER    ("."|"not"|"@"|"^"|"/"|"div"|"mod"|"shl"|"shr"|"="|"<>"|"and"|"xor"|"or"
   BEGIN(mytype);
 }
 
-<myparent>"="{S}"class"{S}*"(" {
+<myparent>"="{S}*"class"{S}*"(" {
+	// class識別子の前のスペース数を可変にした
   BEGIN(myparent2);
 } // Processing a class
 
@@ -2114,7 +2116,8 @@ OPER    ("."|"not"|"@"|"^"|"/"|"div"|"mod"|"shl"|"shr"|"="|"<>"|"and"|"xor"|"or"
   BEGIN(InClass);
 }
 
-<myparent>"="{S}"class" {
+<myparent>"="{S}*"class" {
+	// class識別子の前のスペース数を可変にした
   OutputLog("// got base class");
 
   OutputInheritedClass(0);
