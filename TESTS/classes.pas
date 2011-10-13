@@ -20,6 +20,8 @@ TMemoryStream = class(TCustomMemoryStream)
     FCapacity: Longint;                            ///< Private field
     procedure SetCapacity(NewCapacity: Longint);   ///< Private method
   protected
+    ///<summary>func com</summary>
+   	///<param name="mode">func par</param>
     function Realloc(var NewCapacity: Longint): Pointer; virtual;
 
     /// Protected property
