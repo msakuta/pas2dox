@@ -370,6 +370,7 @@ bool g_bConst = false;             /// Parameter is const
 bool g_bVar = false;               /// Var Parameter
 bool g_bOut = false;               /// Out Parameter
 bool g_bArray = false;             /// Array parameter
+list<string> g_lArrayStack;        /// For processing "array of array"s
 
 string g_strTypedef = "";          /// array or set
 string g_strTypedefType = "";          /// array or set type
@@ -806,6 +807,7 @@ NUM     [0-9]*
 S       [ \t\n\r]
 KEYWORD ("abstract"|"cdecl"|"register"|"dynamic"|"virtual"|"export"|"external"|"far"|"forward"|"override"|"overload"|"pascal"|"reintroduce"|"safecall"|"stdcall")
 OPER    ("."|"not"|"@"|"^"|"/"|"div"|"mod"|"shl"|"shr"|"="|"<>"|"and"|"xor"|"or"|":=")
+NON_ID  [^a-z_A-Z0-9]
 
 %x PROGRAM
 %x function
@@ -1088,7 +1090,7 @@ OPER    ("."|"not"|"@"|"^"|"/"|"div"|"mod"|"shl"|"shr"|"="|"<>"|"and"|"xor"|"or"
   }
 }
 
-<vars>begin|asm        {
+<vars>{NON_ID}+begin|asm{NON_ID}+        {
   OutputLogNum("// Got Begin (vars) - ", g_nBegins);
 
   if (g_bIgnore)
@@ -1111,7 +1113,7 @@ OPER    ("."|"not"|"@"|"^"|"/"|"div"|"mod"|"shl"|"shr"|"="|"<>"|"and"|"xor"|"or"
   BEGIN(Func_Body);
 }
 
-<vars>implementation {
+<vars>{NON_ID}+implementation{NON_ID}+ {
 
   if (g_bInterfaceOnly)
   {
@@ -1136,7 +1138,7 @@ OPER    ("."|"not"|"@"|"^"|"/"|"div"|"mod"|"shl"|"shr"|"="|"<>"|"and"|"xor"|"or"
   }
 }
 
-<vars>function|procedure|begin {
+<vars>{NON_ID}+(function|procedure|begin){NON_ID}+ {
   if (g_bIgnore)
   {
     OutputLog("// section ignore");
@@ -1626,6 +1628,14 @@ OPER    ("."|"not"|"@"|"^"|"/"|"div"|"mod"|"shl"|"shr"|"="|"<>"|"and"|"xor"|"or"
   BEGIN(ProcessSet);
 }
 
+<Constants,mytype,Func_Body,InClass,Struct,myparent>{ID}{S}*("="|":"){S}*"array"{S}*"of"{S}* {
+  OutputLog2("// Processing array of arbitrary type = ", yytext);
+
+  PushText(yytext);
+  g_nGeneralCaller = YY_START;
+  BEGIN(ProcessSet);
+}
+
 <ProcessSet>{ID} {
   g_strTypedefName = yytext;
   BEGIN(ProcessSetType1);
@@ -1633,13 +1643,15 @@ OPER    ("."|"not"|"@"|"^"|"/"|"div"|"mod"|"shl"|"shr"|"="|"<>"|"and"|"xor"|"or"
 
 <ProcessSetType1>("="|":") {}
 
-<ProcessSetType1>"set"{S}*"of" {
+<ProcessSetType1,ProcessSetType2>"set"{S}*"of" {
   g_strTypedef = "set";
+  g_lArrayStack.push_back(g_strTypedef);
   BEGIN(ProcessSetType2);
 }
 
-<ProcessSetType1>"array"{S}*"of" {
+<ProcessSetType1,ProcessSetType2>"array"{S}*"of" {
   g_strTypedef = "array";
+  g_lArrayStack.push_back(g_strTypedef);
   BEGIN(ProcessSetType2);
 }
 
@@ -1649,13 +1661,41 @@ OPER    ("."|"not"|"@"|"^"|"/"|"div"|"mod"|"shl"|"shr"|"="|"<>"|"and"|"xor"|"or"
   g_strTypedefType = yytext;
 }
 
+<ProcessSetType2>"(".*")" {
+  static int invokes = 0;
+  char buf[256];
+  sprintf(buf, "__inplace_enum_%d", invokes);
+  g_strTypedefType = buf;
+  fprintf(OUTPUT, "/// Automatically generated in-place enumeration typedef by pas2dox\n");
+  fprintf(OUTPUT, "enum __inplace_enum_%d{%.*s};\n", invokes, strlen(yytext)-2, yytext+1);
+  invokes++;
+}
+
 <ProcessSetType2>";" {
   if (g_bConvertBody)
   {
     Convert_Type(g_strTypedefType);
   }
 
-  fprintf(OUTPUT, "typedef %s<%s> %s;", g_strTypedef.c_str(), g_strTypedefType.c_str(),g_strTypedefName.c_str());
+  // if array stack is present, unwrap it recursively
+  if(!g_lArrayStack.empty())
+  {
+    fprintf(OUTPUT, "typedef ");
+
+    // Initialize the result with the "innermost" type
+    string result = g_strTypedefType;
+
+    // Enumerate the array stack from the back, to construct C++ template type string
+    for(list<string>::reverse_iterator it = g_lArrayStack.rbegin(); it != g_lArrayStack.rend(); it++)
+    {
+      result = *it + "<" + result + "> ";
+    }
+
+    fprintf(OUTPUT, "%s %s;", result.c_str(), g_strTypedefName.c_str());
+    g_lArrayStack.clear();
+  }
+  else
+    fprintf(OUTPUT, "typedef %s<%s> %s;", g_strTypedef.c_str(), g_strTypedefType.c_str(),g_strTypedefName.c_str());
   BEGIN(g_nGeneralCaller);
 }
 

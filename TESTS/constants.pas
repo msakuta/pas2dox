@@ -43,4 +43,19 @@ resourcestring
 
 implementation
 
+
+const
+  LINE_BEGIN    = 1;
+  LINE_END      = 2;
+  LINE_CONST    = 3;
+  LINE_FUNCTION = 4;
+  LINE_PROCEDURE = 5;
+  LINE_USES     = 6;
+  LINE_INTERFACE = 7;
+  LINE_IMPLEMENTATION = 8;
+  LINE_RESOURCESTRING = 9;
+
+function FunctionAfterConstClause(nIndex: Integer): Integer;
+begin end;
+
 end.
