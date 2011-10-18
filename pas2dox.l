@@ -253,6 +253,9 @@ class func_info
     string sRet;	               ///< Return Type
 
     func_type eFuncType;         ///< Function type
+
+ 	///< Pure virtual function that defines how this function should be formatted in Pascal.
+    virtual void pascalize() = 0;
 };
 
 func_info::func_info()
@@ -272,6 +275,32 @@ func_info::func_info(string aclass, string name, string ret, func_type ft)
 
   eFuncType = ft;
 }
+
+/// Normal Function
+class func_info_typedef : public func_info
+{
+public:
+	func_info_typedef(){}
+	func_info_typedef(string aclass, string name, string ret, func_type ft)
+		: func_info(aclass, name, ret, ft) {}
+	virtual void pascalize(){
+		fprintf(OUTPUT, "typedef %s (*%s)(", sRet != "" ? sRet.c_str() : "void",
+			sName.c_str());
+	};
+};
+
+class func_info_variable : public func_info
+{
+public:
+	func_info_variable(){}
+	func_info_variable(string aclass, string name, string ret, func_type ft)
+		: func_info(aclass, name, ret, ft) {}
+	virtual void pascalize(){
+		fprintf(OUTPUT, "%s (*%s)(", sRet != "" ? sRet.c_str() : "void",
+			sName.c_str());
+	};
+};
+
 
 //*****************************************************************************
 /// Property Information
@@ -335,6 +364,7 @@ array_info::array_info(string name, string type, int size, string def)
 
 //*****************************************************************************
 func_info* pFunc = NULL;
+
 class_info* pClass = NULL;
 prop_info* pProperty = NULL;
 array_info* pArray = NULL;
@@ -625,14 +655,14 @@ void ProcessArrays(void)
 }
 
 //*****************************************************************************
-void ProcessFunction(func_type ft)
+void ProcessFunction(func_type ft, bool variable = false)
 {
   // Process function or procedure
 
   if (pFunc)
     delete pFunc;
 
-  pFunc = new func_info;
+  pFunc = variable ? (func_info*)new func_info_variable : (func_info*)new func_info_typedef;
   pFunc->sRet = "";
 
   pFunc->eFuncType = ft;
@@ -709,7 +739,7 @@ void DisplayVariables(void)
         );
 		*/
 
-OutputLog2("val = ", i->sDefault.c_str());
+	OutputLog2("// val = ", i->sDefault.c_str());
     if (i->sDefault != "")
 	{
 	  
@@ -822,6 +852,9 @@ NON_ID  [^a-z_A-Z0-9]
 %x myparent2
 %x myparent3
 %x callback
+%x InPlaceCallback
+%x InPlaceCallback2
+%x InPlaceCallback3
 %x directive
 %x directive_define
 %x directive_ifdef
@@ -1085,7 +1118,7 @@ NON_ID  [^a-z_A-Z0-9]
 
     g_bType = false;
     g_bClassBody = false;
-    g_bConstSec = true;
+    g_bConstSec = false/*true*/;
     BEGIN(Constants);
   }
 }
@@ -1157,6 +1190,48 @@ NON_ID  [^a-z_A-Z0-9]
   ProcessFunction(NORMAL);
   BEGIN(function);
 }
+
+<Constants>{NON_ID}+{ID}+{S}*:{S}*(function|procedure) {
+  OutputLog2("// detected in-place function pointer", yytext);
+  if (g_bIgnore)
+  {
+    OutputLog("// section ignore");
+    fprintf(OUTPUT, "*/\n");
+  }
+
+  g_bIgnore = false;
+  g_bComments = false;
+  PushText(yytext);
+
+  g_bType = false;
+  g_bConstSec = false;
+  g_bImplementation = true;
+  g_nBegins = 0;
+
+  g_bCallback = true;
+  ProcessFunction(NORMAL, true);
+  BEGIN(InPlaceCallback);
+}
+
+<InPlaceCallback>{ID} {
+  OutputLog2("// in-place function pointer name", yytext);
+  pFunc->sName = yytext;
+//  fprintf(OUTPUT, "typedef %s (*%s)(", pFunc->sRet != "" ? pFunc->sRet.c_str() : "void",
+//    pClass->sName.c_str());
+	BEGIN(InPlaceCallback2);
+}
+
+<InPlaceCallback2>: {
+	OutputLog("// in-place function pointer eats up :");
+	BEGIN(InPlaceCallback3);
+}
+
+<InPlaceCallback3>(function|procedure) {
+	//{S}*\(.*\){S}*:{S}*{ID};
+	OutputLog("// in-place function pointer type declaration begins");
+	BEGIN(function);
+}
+
 
 <vars>"{*}" {
 }
@@ -1577,7 +1652,7 @@ NON_ID  [^a-z_A-Z0-9]
 
   g_bType = false;
   g_bClassBody = false;
-  g_bConstSec = true;
+  g_bConstSec = false;
   BEGIN(Constants);
 }
 
@@ -1884,7 +1959,7 @@ NON_ID  [^a-z_A-Z0-9]
 
   g_bType = false;
   g_bClassBody = false;
-  g_bConstSec = true;
+  g_bConstSec = false/*true*/;
   BEGIN(Constants);
 }
 
@@ -1933,8 +2008,13 @@ NON_ID  [^a-z_A-Z0-9]
   OutputLog("// function typedef details");
   g_bCallback = false;
 
+/*
   fprintf(OUTPUT, "typedef %s (*%s)(", pFunc->sRet != "" ? pFunc->sRet.c_str() : "void",
     pClass->sName.c_str());
+*/
+  if(pFunc->sName == "")
+    pFunc->sName = pClass->sName;
+  pFunc->pascalize();
 
   DisplayParams();
 
