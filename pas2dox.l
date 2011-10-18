@@ -425,6 +425,7 @@ bool g_bCallback = false;          /// In function typedef
 #define OutputLog(s) { if(g_bDebugMode) fprintf(OUTPUT, "%s\n", s); }
 #define OutputLog2(s, t) { if(g_bDebugMode) fprintf(OUTPUT, "%s '%s'\n", s, t); }
 #define OutputLogNum(s, num) { if(g_bDebugMode) fprintf(OUTPUT, "%s %d\n", s, num); }
+#define OutputLogHead() { if(g_bDebugMode) fprintf(OUTPUT, "// line %d\n", __LINE__); }
 
 //*****************************************************************************
 /// Convert Operator
@@ -1081,6 +1082,7 @@ NON_ID  [^a-z_A-Z0-9]
 }
 
 <Body,Constants>^(const|resourcestring) {
+	OutputLogHead();
   if (g_bImplementation)
   {
     OutputLog("// Ignore const Section");
@@ -1124,6 +1126,7 @@ NON_ID  [^a-z_A-Z0-9]
 }
 
 <vars>{NON_ID}+begin|asm{NON_ID}+        {
+	OutputLogHead();
   OutputLogNum("// Got Begin (vars) - ", g_nBegins);
 
   if (g_bIgnore)
@@ -1147,6 +1150,7 @@ NON_ID  [^a-z_A-Z0-9]
 }
 
 <vars>{NON_ID}+implementation{NON_ID}+ {
+	OutputLogHead();
 
   if (g_bInterfaceOnly)
   {
@@ -1171,7 +1175,8 @@ NON_ID  [^a-z_A-Z0-9]
   }
 }
 
-<vars>{NON_ID}+(function|procedure|begin){NON_ID}+ {
+<vars>{NON_ID}(function|procedure|begin){NON_ID}+ {
+	OutputLogHead();
   if (g_bIgnore)
   {
     OutputLog("// section ignore");
@@ -1180,7 +1185,10 @@ NON_ID  [^a-z_A-Z0-9]
 
   g_bIgnore = false;
   g_bComments = false;
-  PushText(yytext);
+
+  // yytext has at least a NON_ID and following (function|procedure|begin), so
+  // we're safe to advance pointer here.
+  PushText(yytext + 1);
 
   g_bType = false;
   g_bConstSec = false;
@@ -1192,6 +1200,7 @@ NON_ID  [^a-z_A-Z0-9]
 }
 
 <Constants>{NON_ID}+{ID}+{S}*:{S}*(function|procedure) {
+	OutputLogHead();
   OutputLog2("// detected in-place function pointer", yytext);
   if (g_bIgnore)
   {
@@ -1205,7 +1214,6 @@ NON_ID  [^a-z_A-Z0-9]
 
   g_bType = false;
   g_bConstSec = false;
-  g_bImplementation = true;
   g_nBegins = 0;
 
   g_bCallback = true;
@@ -1214,6 +1222,7 @@ NON_ID  [^a-z_A-Z0-9]
 }
 
 <InPlaceCallback>{ID} {
+	OutputLogHead();
   OutputLog2("// in-place function pointer name", yytext);
   pFunc->sName = yytext;
 //  fprintf(OUTPUT, "typedef %s (*%s)(", pFunc->sRet != "" ? pFunc->sRet.c_str() : "void",
@@ -1222,14 +1231,16 @@ NON_ID  [^a-z_A-Z0-9]
 }
 
 <InPlaceCallback2>: {
+	OutputLogHead();
 	OutputLog("// in-place function pointer eats up :");
 	BEGIN(InPlaceCallback3);
 }
 
 <InPlaceCallback3>(function|procedure) {
+	OutputLogHead();
 	//{S}*\(.*\){S}*:{S}*{ID};
-	OutputLog("// in-place function pointer type declaration begins");
-	BEGIN(function);
+	OutputLog2("// in-place function pointer type declaration begins, callback = ", g_bCallback ? "true" : "false");
+	BEGIN(callback);
 }
 
 
@@ -1648,6 +1659,7 @@ NON_ID  [^a-z_A-Z0-9]
 }
 
 <Constants>^var {
+	OutputLogHead();
   OutputLog("// in a type varsection");
 
   g_bType = false;
@@ -1657,6 +1669,7 @@ NON_ID  [^a-z_A-Z0-9]
 }
 
 <Constants,mytype,Func_Body,InClass,Struct,myparent>{ID}{S}*":"{S}*"("([^)]*)")"{S}*";" {
+	OutputLogHead();
   PushText(yytext);
   g_nGeneralCaller = YY_START;
   BEGIN(ProcessEnum);
@@ -1688,6 +1701,7 @@ NON_ID  [^a-z_A-Z0-9]
 }
 
 <Constants,mytype,Func_Body,InClass,Struct,myparent>{ID}{S}*(":"|"="){S}*"array"{S}*"["([^\]])*"]"{S}*"of"{S}*{ID}{S}*("="{S}*"("([^)]*)")"{S}*)*";" {
+	OutputLogHead();
   OutputLog2("// Processing array = ", yytext);
 
   PushText(yytext);
@@ -1696,6 +1710,7 @@ NON_ID  [^a-z_A-Z0-9]
 }
 
 <Constants,mytype,Func_Body,InClass,Struct,myparent>{ID}{S}*("="|":"){S}*("array"|"set"){S}*"of"{S}*{ID}{S}*";" {
+	OutputLogHead();
   OutputLog2("// Processing array = ", yytext);
 
   PushText(yytext);
@@ -1704,6 +1719,7 @@ NON_ID  [^a-z_A-Z0-9]
 }
 
 <Constants,mytype,Func_Body,InClass,Struct,myparent>{ID}{S}*("="|":"){S}*"array"{S}*"of"{S}* {
+	OutputLogHead();
   OutputLog2("// Processing array of arbitrary type = ", yytext);
 
   PushText(yytext);
@@ -1886,6 +1902,7 @@ NON_ID  [^a-z_A-Z0-9]
 }
 
 <Constants>{ID}{S}*(","{S}*{ID}{S}*)+":"{S}*{ID}{S}*";" {
+	OutputLogHead();
   OutputLog("// got a multiple definition");
 
   PushText(yytext);
@@ -1894,6 +1911,7 @@ NON_ID  [^a-z_A-Z0-9]
 }
 
 <Constants>{ID}{S}*":"{S}*{ID}{S}*";" {
+	OutputLogHead();
   OutputLog("// Constants");
   PushText(yytext);
   g_nGeneralCaller = YY_START;
@@ -1901,6 +1919,7 @@ NON_ID  [^a-z_A-Z0-9]
 }
 
 <Constants>{ID}{S}*":"{S}*{ID}{S}*"="{S}*{NUM}";" {
+	OutputLogHead();
   OutputLog2("// here 1723 ", yytext);
   PushText(yytext);
   g_nGeneralCaller = YY_START;
@@ -1908,12 +1927,14 @@ NON_ID  [^a-z_A-Z0-9]
 }
 
 <Constants>{ID}{S}*"="{S}*('[^'\n]*'|[^;{\n]*)";" {
+	OutputLogHead();
   OutputLog2("// x = [']y['] = ", yytext);
   PushText(yytext);
   BEGIN(ConstAssign1);
 }
 
 <ConstAssign1>{ID} {
+	OutputLogHead();
   OutputLog2("// got ID = ", yytext);
 
   if (pClass)
@@ -2526,6 +2547,7 @@ NON_ID  [^a-z_A-Z0-9]
 }
 
 <function>{ID}"."{ID} {
+	OutputLogHead();
   OutputLog2("// processing function class.name :", yytext);
   string s = yytext;
 
@@ -2542,11 +2564,13 @@ NON_ID  [^a-z_A-Z0-9]
 }
 
 <function>{ID} {
+	OutputLogHead();
   OutputLog2("// process function name :", yytext);
   pFunc->sName = yytext;
 }
 
 <function>"(" {
+	OutputLogHead();
   OutputLog("// We've got a parameter list for this function");
   g_bParams = true;
   BEGIN(func_params);
@@ -2673,10 +2697,16 @@ ProcessParameterType(g_processtype.c_str());
   lstParams.push_back(p);
 }
 
-<function>{S}":"{S}    { BEGIN(func_ret); }	// Get return type
-<function>":"    { BEGIN(func_ret); }		// Get return type
+<function>{S}":"{S}    {
+	OutputLogHead();
+	BEGIN(func_ret); }	// Get return type
+<function>":"    {
+	OutputLogHead();
+	BEGIN(func_ret); }		// Get return type
 
 <function>";" {
+	OutputLogHead();
+
   list<param_info>::iterator i;
 
   OutputLog("// output function details");
