@@ -377,6 +377,7 @@ string g_defaultvalue;
 string g_processtype;
 list<string> g_lParamType;         /// Parameter Type
 
+unsigned int g_nNamespaces = 0;
 unsigned int g_nBegins = 0;
 
 // Sections
@@ -416,6 +417,8 @@ bool g_bAtEnd = false;             /// At end of function parameters
 bool g_bInterfaceOnly = false;     /// Process only 'Interface' section
 bool g_bConvertBody = false;       /// Convert function body to c++
 bool g_bGenerateSa = true;         /// Generate \sa clauses
+bool g_bNamespace = false;         /// Generate enclosing namespace
+bool g_bIgnoreImplementation = false; /// Default is to include implementation
 
 int g_nCommentCaller = 0;          /// Inteligent returning from comments
 int g_nDirectiveCaller = 0;        /// Inteligent returning from preprocessor directives
@@ -841,6 +844,8 @@ OPER    ("."|"not"|"@"|"^"|"/"|"div"|"mod"|"shl"|"shr"|"="|"<>"|"and"|"xor"|"or"
 NON_ID  [^a-z_A-Z0-9]
 
 %x PROGRAM
+%x PROGRAM_NAME
+%x PROGRAM_BEGIN
 %x function
 %x func_params
 %x DefaultVal
@@ -977,7 +982,24 @@ NON_ID  [^a-z_A-Z0-9]
 }
 
 <PROGRAM>[ \t\n]{ID}{S}*; {
+	OutputLogHead();
+	PushText(yytext);
+	BEGIN(PROGRAM_NAME);
+}
+
+<PROGRAM_NAME>{ID} {
+	OutputLogHead();
+	if(g_bNamespace)
+	{
+		fprintf(OUTPUT, "namespace %s\n{\n", yytext);
+		g_nNamespaces++;
+	}
   // Get the program name
+  BEGIN(PROGRAM_BEGIN);
+}
+
+<PROGRAM_BEGIN>{S}*; {
+	OutputLogHead();
   BEGIN(Body);
 }
 
@@ -1083,12 +1105,11 @@ NON_ID  [^a-z_A-Z0-9]
 
 <Body,Constants>^(const|resourcestring) {
 	OutputLogHead();
-  if (g_bImplementation)
+  if (g_bIgnoreImplementation && g_bImplementation)
   {
     OutputLog("// Ignore const Section");
-
-    g_bVars = true;
     fprintf(OUTPUT, "/*\n//const\n");
+    g_bVars = true;
     g_bComments = true;
     g_bIgnore = true;
     BEGIN(vars);
@@ -1542,6 +1563,8 @@ NON_ID  [^a-z_A-Z0-9]
 
 <Body>"end." {
   fprintf(OUTPUT, "// finished\n");
+  for(; 0 < g_nNamespaces; g_nNamespaces--)
+	  fprintf(OUTPUT, "}\n");
 
   if(g_bIgnoreTypeSection)
   {
@@ -3072,7 +3095,7 @@ void version_info(void)
   fprintf(stdout, "Pas2Dox version %s %s\n", version, date);
   fprintf(stdout, "Copyright Darren Bowles 2002,2003\n\n");
   fprintf(stdout, "Pas2dox is a Pascal/Delphi/Kylix input filter for Doxygen\n\n");
-  fprintf(stdout, "pas2dox [-h] [-d] [-k] [-i] [-o] <input_file>\n");
+  fprintf(stdout, "pas2dox [-hdkiobsnm] <input_file>\n");
   fprintf(stdout, " -h - Help Information\n");
   fprintf(stdout, " -d - Run In Debug Mode\n");
   fprintf(stdout, " -k - Don't Comment Out Function Body\n");
@@ -3080,7 +3103,9 @@ void version_info(void)
   fprintf(stdout, " -j - JavaDoc processing\n");
   fprintf(stdout, " -o - Output to filename.cpp instead of console\n");
   fprintf(stdout, " -b - Experimental convert function body to c++\n");
-  fprintf(stdout, " -s - Suppress generation of \\sa clauses on properties");
+  fprintf(stdout, " -s - Suppress generation of \\sa clauses on properties\n");
+  fprintf(stdout, " -n - Generate enclosing namespace with unit name\n");
+  fprintf(stdout, " -m - Do not ignore implementation section");
 }
 
 int main (int argc, char** argv)
@@ -3122,6 +3147,14 @@ int main (int argc, char** argv)
   
       case 's':
         g_bGenerateSa = false;
+        break;
+
+      case 'n':
+        g_bNamespace = true;
+        break;
+
+      case 'm':
+        g_bIgnoreImplementation = true;
         break;
 
       case 'h':
