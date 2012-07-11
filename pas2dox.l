@@ -20,6 +20,7 @@
 #include <list>
 #include <algorithm>
 #include <ctype.h>
+#include <sstream>
 #ifdef _WIN32
 # include <io.h>
 # include <windows.h>
@@ -425,8 +426,31 @@ int g_nDirectiveCaller = 0;        /// Inteligent returning from preprocessor di
 int g_nGeneralCaller = 0;          /// Intelligent return
 bool g_bCallback = false;          /// In function typedef
 
-#define OutputLog(s) { if(g_bDebugMode) fprintf(OUTPUT, "%s\n", s); }
-#define OutputLog2(s, t) { if(g_bDebugMode) fprintf(OUTPUT, "%s '%s'\n", s, t); }
+//#define OutputLog(s) { if(g_bDebugMode) fprintf(OUTPUT, "%s\n", s); }
+
+/// Let's learn not to use macros in where inline function is more appropriate.
+inline void OutputLog(const char *s, bool newline = true)
+{
+	if(!g_bDebugMode)
+		return;
+	for(; *s; ++s){
+		// Prevent a newline to be unintentionally included in the debug output
+		if(*s == '\n')
+			fprintf(OUTPUT, "\\n");
+		else
+			fputc(*s, OUTPUT);
+	}
+	if(newline)
+		fputc('\n', OUTPUT);
+}
+
+/// std::string's concatenation can do it, too.
+inline void OutputLog2(const char *s, const char *t){
+	OutputLog(s,false);
+	OutputLog(t);
+}
+
+// We leave them at this time
 #define OutputLogNum(s, num) { if(g_bDebugMode) fprintf(OUTPUT, "%s %d\n", s, num); }
 #define OutputLogHead() { if(g_bDebugMode) fprintf(OUTPUT, "// line %d\n", __LINE__); }
 
@@ -548,9 +572,12 @@ void ProcessComment(void)
   }
   else
   {
-    OutputLog2("// pushing onto comment stack ", yytext);
+    OutputLog2("// concatenating to lstParams.back().sComment ", yytext);
 
-    g_lstComments.push_back(yytext);
+    // Add comment to the last item in the parameter list.
+    if(!lstParams.empty()){
+      lstParams.back().sComment += yytext;
+    }
   }
 }
 
@@ -681,13 +708,13 @@ void DisplayParams(void)
   // Loop through parameter list
   for (i = g_lstParams.begin(); i != g_lstParams.end(); i++)
   {
-    string comm;
+/*    string comm;
 
     if(!g_lstComments.empty())
     {
       comm = g_lstComments.front();
       OutputLog2("// Got comment : ", comm.c_str());
-    }
+    }*/
 
     fprintf(OUTPUT, "%s%s%s %s%s%s%s%s %s%s\n",
         i->bConst ? "const " : "",
@@ -699,13 +726,13 @@ void DisplayParams(void)
         i->sDefault != "" ? " = " : "",
         i->sDefault.c_str(),
         distance (i, g_lstParams.end()) == 1 ? "" : ",",
-        comm.c_str()
+        i->sComment.c_str()
         );
 
-    if (!g_lstComments.empty())
+/*    if (!g_lstComments.empty())
     {
       g_lstComments.pop_front();
-    }
+    }*/
   }
 
   RemoveParams();
@@ -1004,11 +1031,12 @@ NON_ID  [^a-z_A-Z0-9]
 }
 
 <comments>[^}\n]* {
-  OutputLog("processing comments");
+  OutputLog("// End processing block comments");
   ProcessComment();
 }
 
-<*>"//"[^\n]* {
+<*>"//"[^\n]*\n {
+  OutputLog("// End processing line comments");
   ProcessComment();
 }
 
@@ -2465,17 +2493,17 @@ NON_ID  [^a-z_A-Z0-9]
   {
     if (!g_bComments)
     {
-  	  if (!g_bIgnore)
-	  {
-	    if (!g_bParams)
-		{
+      if (!g_bIgnore)
+      {
+        if (!g_bParams)
+        {
           fprintf(OUTPUT, "/*");
-		}
-		else
-		{
-		  g_lstComments.push_back("/*");
-	    }
-	  }
+        }
+        else if(!lstParams.empty())
+        {
+            lstParams.back().sComment += "/*";
+        }
+      }
 
       g_bComments = true;
     }
@@ -2502,15 +2530,15 @@ NON_ID  [^a-z_A-Z0-9]
     }
     else
     {
-	  if (!g_bParams)
-	  {
-	    OutputLog("g_bParams is false");
+      if (!g_bParams)
+      {
+        OutputLog("g_bParams is false");
         fprintf(OUTPUT, "*/ ");
       }
-	  else
-	  {
-	    g_lstComments.push_back("*/");
-	  }
+      else if(!lstParams.empty())
+      {
+        lstParams.back().sComment += "*/";
+      }
       g_bComments = false;
     }
   }
