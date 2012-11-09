@@ -2780,10 +2780,17 @@ ProcessParameterType(g_processtype.c_str());
   {
     if (g_bClassBody)
     {
-      fprintf(OUTPUT, "~");
-      if (pClass->sName != "")
+      // If we encounter a inner class (class contained in a class),
+      // pClass can be NULL.
+      // In that case, just give up further processing and just
+      // try not to generate an access violation.
+      if(pClass)
       {
-        pFunc->sName = pClass->sName;
+        fprintf(OUTPUT, "~");
+        if (pClass->sName != "")
+        {
+          pFunc->sName = pClass->sName;
+        }
       }
     }
     else
@@ -2800,9 +2807,16 @@ ProcessParameterType(g_processtype.c_str());
   {
     if (g_bClassBody)
     {
-      if (pClass->sName != "")
+      // If we encounter a inner class (class contained in a class),
+      // pClass can be NULL.
+      // In that case, just give up further processing and just
+      // try not to generate an access violation.
+      if(pClass)
       {
-        pFunc->sName = pClass->sName;
+        if (pClass->sName != "")
+        {
+          pFunc->sName = pClass->sName;
+        }
       }
     }
     else
@@ -3033,7 +3047,12 @@ ProcessParameterType(g_processtype.c_str());
 <InClass,Struct>{ID} {
   OutputLog2("// process a class variable", yytext);
 
-  pClass->sVar = yytext;
+  // If we encounter a inner class (class contained in a class),
+  // pClass can be NULL.
+  // In that case, just give up further processing and just
+  // try not to generate an access violation.
+  if(pClass)
+    pClass->sVar = yytext;
 
 //  PushText(yytext);
 
