@@ -3117,7 +3117,9 @@ ProcessParameterType(g_processtype.c_str());
 }
 
 <Uses>;         { BEGIN(Body); }
-<Uses>{ID} {}
+<Uses>{ID} { // Convert used unit names to C preprocessor's include directive
+	fprintf(OUTPUT, "#include \"%s.pas\"\n", yytext);
+}
 <Uses>, {}
 
 %%
