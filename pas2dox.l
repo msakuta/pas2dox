@@ -20,6 +20,7 @@
 #include <list>
 #include <algorithm>
 #include <ctype.h>
+#include <sstream>
 #ifdef _WIN32
 # include <io.h>
 # include <windows.h>
@@ -253,6 +254,9 @@ class func_info
     string sRet;	               ///< Return Type
 
     func_type eFuncType;         ///< Function type
+
+ 	///< Pure virtual function that defines how this function should be formatted in Pascal.
+    virtual void pascalize() = 0;
 };
 
 func_info::func_info()
@@ -272,6 +276,32 @@ func_info::func_info(string aclass, string name, string ret, func_type ft)
 
   eFuncType = ft;
 }
+
+/// Normal Function
+class func_info_typedef : public func_info
+{
+public:
+	func_info_typedef(){}
+	func_info_typedef(string aclass, string name, string ret, func_type ft)
+		: func_info(aclass, name, ret, ft) {}
+	virtual void pascalize(){
+		fprintf(OUTPUT, "typedef %s (*%s)(", sRet != "" ? sRet.c_str() : "void",
+			sName.c_str());
+	};
+};
+
+class func_info_variable : public func_info
+{
+public:
+	func_info_variable(){}
+	func_info_variable(string aclass, string name, string ret, func_type ft)
+		: func_info(aclass, name, ret, ft) {}
+	virtual void pascalize(){
+		fprintf(OUTPUT, "%s (*%s)(", sRet != "" ? sRet.c_str() : "void",
+			sName.c_str());
+	};
+};
+
 
 //*****************************************************************************
 /// Property Information
@@ -335,6 +365,7 @@ array_info::array_info(string name, string type, int size, string def)
 
 //*****************************************************************************
 func_info* pFunc = NULL;
+
 class_info* pClass = NULL;
 prop_info* pProperty = NULL;
 array_info* pArray = NULL;
@@ -347,6 +378,7 @@ string g_defaultvalue;
 string g_processtype;
 list<string> g_lParamType;         /// Parameter Type
 
+unsigned int g_nNamespaces = 0;
 unsigned int g_nBegins = 0;
 
 // Sections
@@ -386,15 +418,41 @@ bool g_bAtEnd = false;             /// At end of function parameters
 bool g_bInterfaceOnly = false;     /// Process only 'Interface' section
 bool g_bConvertBody = false;       /// Convert function body to c++
 bool g_bGenerateSa = true;         /// Generate \sa clauses
+bool g_bNamespace = false;         /// Generate enclosing namespace
+bool g_bIgnoreImplementation = false; /// Default is to include implementation
 
 int g_nCommentCaller = 0;          /// Inteligent returning from comments
 int g_nDirectiveCaller = 0;        /// Inteligent returning from preprocessor directives
 int g_nGeneralCaller = 0;          /// Intelligent return
 bool g_bCallback = false;          /// In function typedef
 
-#define OutputLog(s) { if(g_bDebugMode) fprintf(OUTPUT, "%s\n", s); }
-#define OutputLog2(s, t) { if(g_bDebugMode) fprintf(OUTPUT, "%s '%s'\n", s, t); }
+//#define OutputLog(s) { if(g_bDebugMode) fprintf(OUTPUT, "%s\n", s); }
+
+/// Let's learn not to use macros in where inline function is more appropriate.
+inline void OutputLog(const char *s, bool newline = true)
+{
+	if(!g_bDebugMode)
+		return;
+	for(; *s; ++s){
+		// Prevent a newline to be unintentionally included in the debug output
+		if(*s == '\n')
+			fprintf(OUTPUT, "\\n");
+		else
+			fputc(*s, OUTPUT);
+	}
+	if(newline)
+		fputc('\n', OUTPUT);
+}
+
+/// std::string's concatenation can do it, too.
+inline void OutputLog2(const char *s, const char *t){
+	OutputLog(s,false);
+	OutputLog(t);
+}
+
+// We leave them at this time
 #define OutputLogNum(s, num) { if(g_bDebugMode) fprintf(OUTPUT, "%s %d\n", s, num); }
+#define OutputLogHead() { if(g_bDebugMode) fprintf(OUTPUT, "// line %d\n", __LINE__); }
 
 //*****************************************************************************
 /// Convert Operator
@@ -514,9 +572,12 @@ void ProcessComment(void)
   }
   else
   {
-    OutputLog2("// pushing onto comment stack ", yytext);
+    OutputLog2("// concatenating to lstParams.back().sComment ", yytext);
 
-    g_lstComments.push_back(yytext);
+    // Add comment to the last item in the parameter list.
+    if(!lstParams.empty()){
+      lstParams.back().sComment += yytext;
+    }
   }
 }
 
@@ -625,14 +686,14 @@ void ProcessArrays(void)
 }
 
 //*****************************************************************************
-void ProcessFunction(func_type ft)
+void ProcessFunction(func_type ft, bool variable = false)
 {
   // Process function or procedure
 
   if (pFunc)
     delete pFunc;
 
-  pFunc = new func_info;
+  pFunc = variable ? (func_info*)new func_info_variable : (func_info*)new func_info_typedef;
   pFunc->sRet = "";
 
   pFunc->eFuncType = ft;
@@ -647,13 +708,13 @@ void DisplayParams(void)
   // Loop through parameter list
   for (i = g_lstParams.begin(); i != g_lstParams.end(); i++)
   {
-    string comm;
+/*    string comm;
 
     if(!g_lstComments.empty())
     {
       comm = g_lstComments.front();
       OutputLog2("// Got comment : ", comm.c_str());
-    }
+    }*/
 
     fprintf(OUTPUT, "%s%s%s %s%s%s%s%s %s%s\n",
         i->bConst ? "const " : "",
@@ -665,13 +726,13 @@ void DisplayParams(void)
         i->sDefault != "" ? " = " : "",
         i->sDefault.c_str(),
         distance (i, g_lstParams.end()) == 1 ? "" : ",",
-        comm.c_str()
+        i->sComment.c_str()
         );
 
-    if (!g_lstComments.empty())
+/*    if (!g_lstComments.empty())
     {
       g_lstComments.pop_front();
-    }
+    }*/
   }
 
   RemoveParams();
@@ -709,7 +770,7 @@ void DisplayVariables(void)
         );
 		*/
 
-OutputLog2("val = ", i->sDefault.c_str());
+	OutputLog2("// val = ", i->sDefault.c_str());
     if (i->sDefault != "")
 	{
 	  
@@ -810,6 +871,8 @@ OPER    ("."|"not"|"@"|"^"|"/"|"div"|"mod"|"shl"|"shr"|"="|"<>"|"and"|"xor"|"or"
 NON_ID  [^a-z_A-Z0-9]
 
 %x PROGRAM
+%x PROGRAM_NAME
+%x PROGRAM_BEGIN
 %x function
 %x func_params
 %x DefaultVal
@@ -822,6 +885,9 @@ NON_ID  [^a-z_A-Z0-9]
 %x myparent2
 %x myparent3
 %x callback
+%x InPlaceCallback
+%x InPlaceCallback2
+%x InPlaceCallback3
 %x directive
 %x directive_define
 %x directive_ifdef
@@ -943,16 +1009,34 @@ NON_ID  [^a-z_A-Z0-9]
 }
 
 <PROGRAM>[ \t\n]{ID}{S}*; {
+	OutputLogHead();
+	PushText(yytext);
+	BEGIN(PROGRAM_NAME);
+}
+
+<PROGRAM_NAME>{ID} {
+	OutputLogHead();
+	if(g_bNamespace)
+	{
+		fprintf(OUTPUT, "namespace %s\n{\n", yytext);
+		g_nNamespaces++;
+	}
   // Get the program name
+  BEGIN(PROGRAM_BEGIN);
+}
+
+<PROGRAM_BEGIN>{S}*; {
+	OutputLogHead();
   BEGIN(Body);
 }
 
 <comments>[^}\n]* {
-  OutputLog("processing comments");
+  OutputLog("// End processing block comments");
   ProcessComment();
 }
 
-<*>"//"[^\n]* {
+<*>"//"[^\n]*\n {
+  OutputLog("// End processing line comments");
   ProcessComment();
 }
 
@@ -1048,12 +1132,12 @@ NON_ID  [^a-z_A-Z0-9]
 }
 
 <Body,Constants>^(const|resourcestring) {
-  if (g_bImplementation)
+	OutputLogHead();
+  if (g_bIgnoreImplementation && g_bImplementation)
   {
     OutputLog("// Ignore const Section");
-
-    g_bVars = true;
     fprintf(OUTPUT, "/*\n//const\n");
+    g_bVars = true;
     g_bComments = true;
     g_bIgnore = true;
     BEGIN(vars);
@@ -1085,12 +1169,13 @@ NON_ID  [^a-z_A-Z0-9]
 
     g_bType = false;
     g_bClassBody = false;
-    g_bConstSec = true;
+    g_bConstSec = false/*true*/;
     BEGIN(Constants);
   }
 }
 
 <vars>{NON_ID}+begin|asm{NON_ID}+        {
+	OutputLogHead();
   OutputLogNum("// Got Begin (vars) - ", g_nBegins);
 
   if (g_bIgnore)
@@ -1114,6 +1199,7 @@ NON_ID  [^a-z_A-Z0-9]
 }
 
 <vars>{NON_ID}+implementation{NON_ID}+ {
+	OutputLogHead();
 
   if (g_bInterfaceOnly)
   {
@@ -1138,7 +1224,33 @@ NON_ID  [^a-z_A-Z0-9]
   }
 }
 
-<vars>{NON_ID}+(function|procedure|begin){NON_ID}+ {
+<vars>{NON_ID}(function|procedure|begin){NON_ID}+ {
+	OutputLogHead();
+  if (g_bIgnore)
+  {
+    OutputLog("// section ignore");
+    fprintf(OUTPUT, "*/\n");
+  }
+
+  g_bIgnore = false;
+  g_bComments = false;
+
+  // yytext has at least a NON_ID and following (function|procedure|begin), so
+  // we're safe to advance pointer here.
+  PushText(yytext + 1);
+
+  g_bType = false;
+  g_bConstSec = false;
+  g_bImplementation = true;
+  g_nBegins = 0;
+
+  ProcessFunction(NORMAL);
+  BEGIN(function);
+}
+
+<Constants>{NON_ID}+{ID}+{S}*:{S}*(function|procedure) {
+	OutputLogHead();
+  OutputLog2("// detected in-place function pointer", yytext);
   if (g_bIgnore)
   {
     OutputLog("// section ignore");
@@ -1151,12 +1263,35 @@ NON_ID  [^a-z_A-Z0-9]
 
   g_bType = false;
   g_bConstSec = false;
-  g_bImplementation = true;
   g_nBegins = 0;
 
-  ProcessFunction(NORMAL);
-  BEGIN(function);
+  g_bCallback = true;
+  ProcessFunction(NORMAL, true);
+  BEGIN(InPlaceCallback);
 }
+
+<InPlaceCallback>{ID} {
+	OutputLogHead();
+  OutputLog2("// in-place function pointer name", yytext);
+  pFunc->sName = yytext;
+//  fprintf(OUTPUT, "typedef %s (*%s)(", pFunc->sRet != "" ? pFunc->sRet.c_str() : "void",
+//    pClass->sName.c_str());
+	BEGIN(InPlaceCallback2);
+}
+
+<InPlaceCallback2>: {
+	OutputLogHead();
+	OutputLog("// in-place function pointer eats up :");
+	BEGIN(InPlaceCallback3);
+}
+
+<InPlaceCallback3>(function|procedure) {
+	OutputLogHead();
+	//{S}*\(.*\){S}*:{S}*{ID};
+	OutputLog2("// in-place function pointer type declaration begins, callback = ", g_bCallback ? "true" : "false");
+	BEGIN(callback);
+}
+
 
 <vars>"{*}" {
 }
@@ -1456,6 +1591,8 @@ NON_ID  [^a-z_A-Z0-9]
 
 <Body>"end." {
   fprintf(OUTPUT, "// finished\n");
+  for(; 0 < g_nNamespaces; g_nNamespaces--)
+	  fprintf(OUTPUT, "}\n");
 
   if(g_bIgnoreTypeSection)
   {
@@ -1573,15 +1710,17 @@ NON_ID  [^a-z_A-Z0-9]
 }
 
 <Constants>^var {
+	OutputLogHead();
   OutputLog("// in a type varsection");
 
   g_bType = false;
   g_bClassBody = false;
-  g_bConstSec = true;
+  g_bConstSec = false;
   BEGIN(Constants);
 }
 
 <Constants,mytype,Func_Body,InClass,Struct,myparent>{ID}{S}*":"{S}*"("([^)]*)")"{S}*";" {
+	OutputLogHead();
   PushText(yytext);
   g_nGeneralCaller = YY_START;
   BEGIN(ProcessEnum);
@@ -1613,6 +1752,7 @@ NON_ID  [^a-z_A-Z0-9]
 }
 
 <Constants,mytype,Func_Body,InClass,Struct,myparent>{ID}{S}*(":"|"="){S}*"array"{S}*"["([^\]])*"]"{S}*"of"{S}*{ID}{S}*("="{S}*"("([^)]*)")"{S}*)*";" {
+	OutputLogHead();
   OutputLog2("// Processing array = ", yytext);
 
   PushText(yytext);
@@ -1621,6 +1761,7 @@ NON_ID  [^a-z_A-Z0-9]
 }
 
 <Constants,mytype,Func_Body,InClass,Struct,myparent>{ID}{S}*("="|":"){S}*("array"|"set"){S}*"of"{S}*{ID}{S}*";" {
+	OutputLogHead();
   OutputLog2("// Processing array = ", yytext);
 
   PushText(yytext);
@@ -1629,6 +1770,7 @@ NON_ID  [^a-z_A-Z0-9]
 }
 
 <Constants,mytype,Func_Body,InClass,Struct,myparent>{ID}{S}*("="|":"){S}*"array"{S}*"of"{S}* {
+	OutputLogHead();
   OutputLog2("// Processing array of arbitrary type = ", yytext);
 
   PushText(yytext);
@@ -1811,6 +1953,7 @@ NON_ID  [^a-z_A-Z0-9]
 }
 
 <Constants>{ID}{S}*(","{S}*{ID}{S}*)+":"{S}*{ID}{S}*";" {
+	OutputLogHead();
   OutputLog("// got a multiple definition");
 
   PushText(yytext);
@@ -1819,6 +1962,7 @@ NON_ID  [^a-z_A-Z0-9]
 }
 
 <Constants>{ID}{S}*":"{S}*{ID}{S}*";" {
+	OutputLogHead();
   OutputLog("// Constants");
   PushText(yytext);
   g_nGeneralCaller = YY_START;
@@ -1826,6 +1970,7 @@ NON_ID  [^a-z_A-Z0-9]
 }
 
 <Constants>{ID}{S}*":"{S}*{ID}{S}*"="{S}*{NUM}";" {
+	OutputLogHead();
   OutputLog2("// here 1723 ", yytext);
   PushText(yytext);
   g_nGeneralCaller = YY_START;
@@ -1833,12 +1978,14 @@ NON_ID  [^a-z_A-Z0-9]
 }
 
 <Constants>{ID}{S}*"="{S}*('[^'\n]*'|[^;{\n]*)";" {
+	OutputLogHead();
   OutputLog2("// x = [']y['] = ", yytext);
   PushText(yytext);
   BEGIN(ConstAssign1);
 }
 
 <ConstAssign1>{ID} {
+	OutputLogHead();
   OutputLog2("// got ID = ", yytext);
 
   if (pClass)
@@ -1884,7 +2031,7 @@ NON_ID  [^a-z_A-Z0-9]
 
   g_bType = false;
   g_bClassBody = false;
-  g_bConstSec = true;
+  g_bConstSec = false/*true*/;
   BEGIN(Constants);
 }
 
@@ -1933,8 +2080,13 @@ NON_ID  [^a-z_A-Z0-9]
   OutputLog("// function typedef details");
   g_bCallback = false;
 
+/*
   fprintf(OUTPUT, "typedef %s (*%s)(", pFunc->sRet != "" ? pFunc->sRet.c_str() : "void",
     pClass->sName.c_str());
+*/
+  if(pFunc->sName == "")
+    pFunc->sName = pClass->sName;
+  pFunc->pascalize();
 
   DisplayParams();
 
@@ -2341,17 +2493,17 @@ NON_ID  [^a-z_A-Z0-9]
   {
     if (!g_bComments)
     {
-  	  if (!g_bIgnore)
-	  {
-	    if (!g_bParams)
-		{
+      if (!g_bIgnore)
+      {
+        if (!g_bParams)
+        {
           fprintf(OUTPUT, "/*");
-		}
-		else
-		{
-		  g_lstComments.push_back("/*");
-	    }
-	  }
+        }
+        else if(!lstParams.empty())
+        {
+            lstParams.back().sComment += "/*";
+        }
+      }
 
       g_bComments = true;
     }
@@ -2378,15 +2530,15 @@ NON_ID  [^a-z_A-Z0-9]
     }
     else
     {
-	  if (!g_bParams)
-	  {
-	    OutputLog("g_bParams is false");
+      if (!g_bParams)
+      {
+        OutputLog("g_bParams is false");
         fprintf(OUTPUT, "*/ ");
       }
-	  else
-	  {
-	    g_lstComments.push_back("*/");
-	  }
+      else if(!lstParams.empty())
+      {
+        lstParams.back().sComment += "*/";
+      }
       g_bComments = false;
     }
   }
@@ -2446,6 +2598,7 @@ NON_ID  [^a-z_A-Z0-9]
 }
 
 <function>{ID}"."{ID} {
+	OutputLogHead();
   OutputLog2("// processing function class.name :", yytext);
   string s = yytext;
 
@@ -2462,11 +2615,13 @@ NON_ID  [^a-z_A-Z0-9]
 }
 
 <function>{ID} {
+	OutputLogHead();
   OutputLog2("// process function name :", yytext);
   pFunc->sName = yytext;
 }
 
 <function>"(" {
+	OutputLogHead();
   OutputLog("// We've got a parameter list for this function");
   g_bParams = true;
   BEGIN(func_params);
@@ -2593,10 +2748,16 @@ ProcessParameterType(g_processtype.c_str());
   lstParams.push_back(p);
 }
 
-<function>{S}":"{S}    { BEGIN(func_ret); }	// Get return type
-<function>":"    { BEGIN(func_ret); }		// Get return type
+<function>{S}":"{S}    {
+	OutputLogHead();
+	BEGIN(func_ret); }	// Get return type
+<function>":"    {
+	OutputLogHead();
+	BEGIN(func_ret); }		// Get return type
 
 <function>";" {
+	OutputLogHead();
+
   list<param_info>::iterator i;
 
   OutputLog("// output function details");
@@ -2619,10 +2780,17 @@ ProcessParameterType(g_processtype.c_str());
   {
     if (g_bClassBody)
     {
-      fprintf(OUTPUT, "~");
-      if (pClass->sName != "")
+      // If we encounter a inner class (class contained in a class),
+      // pClass can be NULL.
+      // In that case, just give up further processing and just
+      // try not to generate an access violation.
+      if(pClass)
       {
-        pFunc->sName = pClass->sName;
+        fprintf(OUTPUT, "~");
+        if (pClass->sName != "")
+        {
+          pFunc->sName = pClass->sName;
+        }
       }
     }
     else
@@ -2639,9 +2807,16 @@ ProcessParameterType(g_processtype.c_str());
   {
     if (g_bClassBody)
     {
-      if (pClass->sName != "")
+      // If we encounter a inner class (class contained in a class),
+      // pClass can be NULL.
+      // In that case, just give up further processing and just
+      // try not to generate an access violation.
+      if(pClass)
       {
-        pFunc->sName = pClass->sName;
+        if (pClass->sName != "")
+        {
+          pFunc->sName = pClass->sName;
+        }
       }
     }
     else
@@ -2872,7 +3047,12 @@ ProcessParameterType(g_processtype.c_str());
 <InClass,Struct>{ID} {
   OutputLog2("// process a class variable", yytext);
 
-  pClass->sVar = yytext;
+  // If we encounter a inner class (class contained in a class),
+  // pClass can be NULL.
+  // In that case, just give up further processing and just
+  // try not to generate an access violation.
+  if(pClass)
+    pClass->sVar = yytext;
 
 //  PushText(yytext);
 
@@ -2937,7 +3117,9 @@ ProcessParameterType(g_processtype.c_str());
 }
 
 <Uses>;         { BEGIN(Body); }
-<Uses>{ID} {}
+<Uses>{ID} { // Convert used unit names to C preprocessor's include directive
+	fprintf(OUTPUT, "#include \"%s.pas\"\n", yytext);
+}
 <Uses>, {}
 
 %%
@@ -2962,7 +3144,7 @@ void version_info(void)
   fprintf(stdout, "Pas2Dox version %s %s\n", version, date);
   fprintf(stdout, "Copyright Darren Bowles 2002,2003\n\n");
   fprintf(stdout, "Pas2dox is a Pascal/Delphi/Kylix input filter for Doxygen\n\n");
-  fprintf(stdout, "pas2dox [-h] [-d] [-k] [-i] [-o] <input_file>\n");
+  fprintf(stdout, "pas2dox [-hdkiobsnm] <input_file>\n");
   fprintf(stdout, " -h - Help Information\n");
   fprintf(stdout, " -d - Run In Debug Mode\n");
   fprintf(stdout, " -k - Don't Comment Out Function Body\n");
@@ -2970,7 +3152,9 @@ void version_info(void)
   fprintf(stdout, " -j - JavaDoc processing\n");
   fprintf(stdout, " -o - Output to filename.cpp instead of console\n");
   fprintf(stdout, " -b - Experimental convert function body to c++\n");
-  fprintf(stdout, " -s - Suppress generation of \\sa clauses on properties");
+  fprintf(stdout, " -s - Suppress generation of \\sa clauses on properties\n");
+  fprintf(stdout, " -n - Generate enclosing namespace with unit name\n");
+  fprintf(stdout, " -m - Do not ignore implementation section");
 }
 
 int main (int argc, char** argv)
@@ -3012,6 +3196,14 @@ int main (int argc, char** argv)
   
       case 's':
         g_bGenerateSa = false;
+        break;
+
+      case 'n':
+        g_bNamespace = true;
+        break;
+
+      case 'm':
+        g_bIgnoreImplementation = true;
         break;
 
       case 'h':
