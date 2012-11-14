@@ -1,0 +1,86 @@
+Pas2Dox Version 0.50rc1
+--------------------
+
+Please read INSTALL for compilation instructions.
+
+The latest version of pas2dox can be obtained at
+  http://pas2dox.sourceforge.net
+
+There is a developers mailing list at
+  pas2dox-development@lists.sourceforge.net
+
+Please follow the link in
+  http://sourceforge.net/projects/pas2dox
+
+to subscribe to the list, or to visit the archives.
+
+Usage Guide
+-----------
+This guide assumes that your Doxygen configuration file is called Doxyfile.
+Please visit www.doxygen.org for Doxygen configuration information.
+
+Here is a sample Doxyfile for Win32 that processes all .pas files in the
+current directory.
+
+INPUT = .
+FILE_PATTERNS = *.pas
+INPUT_FILTER = c:\pas2dox\pas2dox.exe
+FILTER_SOURCE_FILES = YES
+
+If you are running on linux, adjust the INPUT_FILTER accordingly, for example
+INPUT_FILTER = /usr/local/bin/pas2dox
+
+-d Debug Option
+---------------
+If you need to debug, for example if output isn't generated as you expect,
+you can use the -d command line option, as follows :
+
+pas2dox -d filename.pas > filename.cpp
+
+-s Suppress \sa auto commenting
+-------------------------------
+To stop pas2dox generating \sa comments for property statements, use this option.
+
+-j JavaDoc Option
+-----------------
+This option enabled processing of JavaDoc commenting style.
+{** would be converted to /***, but with -j option enabled is converted to /**
+
+-b Convert function body to c++
+-------------------------------
+This is an experimental option for converting function body source code from pascal to c++.
+It should be used in association with -k
+
+-o Output Option
+----------------
+If you need to create .cpp files, you can ether use :
+
+pas2dox filename.pas > filename.cpp
+
+or, the new -o output option :
+pas2dox -o filename.pas will send output to filename.cpp
+
+-k Don't comment out function body
+----------------------------------
+To avoid Doxygen getting confused over pascal source code in the body of a function,
+pas2dox comments this out by default, using a DOXYGEN_SKIP pre-processor option.  This
+functionality is disabled by use of this option.
+
+
+Compiler definitions are now handled in pas2dox.  
+
+Example :  If you have code such as
+
+{$ifdef INTERNAL}
+/// Here is some internal documentation
+{$else}
+/// Here is some external documentation
+{$endif}
+
+Documentation can then be generated for INTERNAL use, by setting the following
+in your Doxyfile
+
+PREDEFINED = INTERNAL
+
+Ta,
+Darren Bowles (dbowles@users.sourceforge.net) (15th November 2003)
